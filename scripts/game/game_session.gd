@@ -5,6 +5,8 @@ enum Phase { PREPARE, RAIN, REPORT, GAME_OVER }
 const PREPARE_SECONDS := 180.0
 const RAIN_SECONDS := 60.0
 const TURNS_PER_YEAR := 8
+const FIRST_SETTLEMENT_TURN := 2
+const SETTLEMENT_INTERVAL_TURNS := 4
 const EDIT_COST := 10
 var grid: GridState
 var solver: WaterSimulator
@@ -143,7 +145,7 @@ func next_turn() -> void:
 	development.refresh_eligibility(grid)
 	var growth := development.grow(turn)
 	notification = "%d人が家族に加わりました。" % growth if growth > 0 else ""
-	if turn >= TURNS_PER_YEAR and turn % 4 == 0:
+	if turn >= FIRST_SETTLEMENT_TURN and (turn - FIRST_SETTLEMENT_TURN) % SETTLEMENT_INTERVAL_TURNS == 0:
 		var house := development.settle(grid, rng, turn)
 		if not house.is_empty():
 			ever_settled = true

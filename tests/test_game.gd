@@ -86,7 +86,7 @@ func run() -> void:
 
 func _test_phase_and_weather() -> void:
 	var state := session()
-	verify(state.power == 1000 and state.development.population() == 0, "Initial power and uninhabited year")
+	verify(state.power == 1000 and state.development.population() == 0, "Initial power and uninhabited spring")
 	verify(state.advance_ticks(4) == 0, "Phase transition freezes time")
 	state.dismiss_transition()
 	state.phase_seconds = 179.95
@@ -194,32 +194,45 @@ func _test_development() -> void:
 	dev.refresh_eligibility(state.grid)
 	verify(dev.assessed_seconds == 300.0, "Preparation edits do not dilute the completed migration observation")
 	state.phase = GameSession.Phase.REPORT
-	state.turn = 7
+	state.turn = 1
 	state.next_turn()
-	verify(state.turn == 8 and dev.houses.size() == 1 and dev.population() == 1 and state.ever_settled, "First household arrives after one year")
+	verify(state.turn == 2 and dev.houses.size() == 1 and dev.population() == 1 and state.ever_settled, "First household arrives after two turns")
 	var built: Dictionary = dev.houses[0]
 	var level := true
 	for cell in built.cells:
 		level = level and state.grid.elevation[cell] == state.grid.elevation[built.cells[0]]
 	verify(built.cells.size() == 12 and level, "New 3 by 4 house flattens its land to the highest footprint cell")
-	verify(dev.grow(15) == 0 and dev.grow(16) == 1, "Population grows after a full year, never early")
-	dev.grow(24)
-	dev.grow(32)
-	dev.grow(40)
+	verify(dev.grow(9) == 0 and dev.grow(10) == 1, "Population grows after a full year, never early")
+	dev.grow(18)
+	dev.grow(26)
+	dev.grow(34)
 	verify(dev.population() == 4, "Household population stops at four")
 	var growing := session()
 	growing.development.current_seconds = 300.0
-	growing.turn = 7
 	growing.phase = GameSession.Phase.REPORT
 	growing.next_turn()
-	growing.turn = 11
+	verify(growing.turn == 1 and growing.development.houses.is_empty(), "No residents arrive after only one spring turn")
+	var restored := GameSession.from_data(growing.to_data())
+	growing.phase = GameSession.Phase.REPORT
+	restored.phase = GameSession.Phase.REPORT
+	growing.next_turn()
+	restored.next_turn()
+	verify(growing.turn == 2 and growing.development.houses.size() == 1 and growing.calendar().contains("夏") and growing.calendar().contains("1 / 2"), "The first arrival starts summer turn one")
+	verify(restored.development.houses == growing.development.houses and restored.rng.state == growing.rng.state, "Continuation before summer reproduces the first migration")
+	for turn in range(3, 6):
+		growing.phase = GameSession.Phase.REPORT
+		growing.next_turn()
+	verify(growing.development.houses.size() == 1, "The next migration waits four turns after the first arrival")
 	growing.phase = GameSession.Phase.REPORT
 	growing.next_turn()
-	verify(growing.development.houses.size() == 2 and growing.development.population() == 2, "Further households arrive every half year")
-	growing.turn = 15
+	verify(growing.turn == 6 and growing.development.houses.size() == 2 and growing.development.population() == 2, "Further households arrive every half year")
+	for turn in range(7, 10):
+		growing.phase = GameSession.Phase.REPORT
+		growing.next_turn()
+	verify(growing.development.population() == 2, "Early arrival does not shorten annual household growth")
 	growing.phase = GameSession.Phase.REPORT
 	growing.next_turn()
-	verify(growing.development.houses.size() == 3 and growing.development.population() == 4, "Annual household growth and half-year settlement combine")
+	verify(growing.turn == 10 and growing.development.houses.size() == 3 and growing.development.population() == 4, "Annual household growth and half-year settlement combine")
 	var observed := DevelopmentSystem.new(4096)
 	observed.begin_rain_window()
 	state.grid.water[middle] = 0.01

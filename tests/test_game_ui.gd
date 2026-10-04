@@ -134,12 +134,12 @@ func run() -> void:
 	game._handle_phase()
 	verify(game.hud.modal_kind == "report" and not game.audio.rain_player.playing, "Accounting opens report and stops rain sound")
 	await capture("report")
-	game.session.turn = 7
+	game.session.turn = 1
 	game.session.development.current_seconds = 300.0
 	game.session.development.current_wet.fill(0.0)
 	game.session.development.previous_wet.fill(0.0)
 	press("次の治水へ進む")
-	verify(game.session.development.population() == 1 and game.session.turn == 8, "First settlement appears in the playable scene")
+	verify(game.session.development.population() == 1 and game.session.turn == 2 and game.session.calendar().contains("夏"), "First settlement appears at the start of summer in the playable scene")
 	await capture("arrival")
 	press("進める")
 	game.session.paused = true

@@ -146,7 +146,7 @@ func _build_title() -> void:
 	continue_button = _button(box, "続きから始める", func(): continue_requested.emit())
 	title_note = _label(box, "", 14, MUTED)
 	title_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label(box, "最初の1年間は、人が住む土地を整えます。", 14, MUTED)
+	_label(box, "最初の2ターンで、人が住む土地を整えます。", 14, MUTED)
 	_label(box, "水理PoC  ·  キーボードとマウスで遊べます。", 13, Color("81988d"))
 
 func _build_game() -> void:
@@ -397,8 +397,8 @@ func show_transition(session: GameSession) -> void:
 	_label(box, "治水を始めます。" if session.phase == GameSession.Phase.PREPARE else "雨が降り始めます。", 34)
 	if session.phase == GameSession.Phase.PREPARE:
 		_label(box, "地形を変えて、水の流れを整えられます。", 18, MUTED)
-		if session.turn < 8:
-			_label(box, "1年が過ぎると、条件を満たした土地に人が移住します。", 15, MUTED)
+		if session.turn < GameSession.FIRST_SETTLEMENT_TURN:
+			_label(box, "春の2ターンが終わると、条件を満たした土地に人が移住します。", 15, MUTED)
 		if not session.notification.is_empty():
 			_label(box, session.notification, 18, Color("edc68e"))
 	else:
