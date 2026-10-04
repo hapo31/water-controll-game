@@ -130,6 +130,12 @@ func run() -> void:
 	verify(game.camera.zoom.x > zoom_before, "The map can still be zoomed during fast-forward")
 	key(KEY_HOME)
 	await capture("skip-start")
+	game._process(0.05)
+	game._finish_batch(true)
+	verify(game.view.grid.water == skip_water and game.session.grid.water != skip_water, "Rendering holds an independent water snapshot until the completed worker result is published")
+	game._refresh()
+	verify(game.view.grid.water == game.session.grid.water, "Publishing a completed batch updates the detached water snapshot")
+	var skip_clock_start: float = game.session.elapsed
 	game.set_process(true)
 	var skip_wall_start := Time.get_ticks_msec()
 	await create_timer(0.35).timeout
@@ -137,7 +143,7 @@ func run() -> void:
 	game.set_process(false)
 	game._finish_batch(true)
 	verify(game.skipping and game.view.grid.water != skip_water and game.hud.time_bar.value < skip_bar, "Water snapshots and remaining time visibly update while fast-forward is running")
-	var skip_elapsed: float = game.session.elapsed - before
+	var skip_elapsed: float = game.session.elapsed - skip_clock_start
 	var skip_wall := float(Time.get_ticks_msec() - skip_wall_start) / 1000.0
 	print("SKIP_RENDERED: ", skip_elapsed, " simulation seconds / ", skip_wall, " wall seconds")
 	verify(skip_elapsed > 0.0 and skip_elapsed <= skip_wall * 16.0 + 0.8, "Visible fast-forward progresses without exceeding the 16x clock budget")

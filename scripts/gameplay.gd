@@ -169,9 +169,9 @@ func _refresh() -> void:
 	published_heavy = session.weather >= 2
 	published_mountain_rain = session.weather % 2 == 0
 	for key in ["elevation", "water", "peak_depth", "flow", "discharge", "origin_mask"]:
-		view.grid.set(key, session.grid.get(key))
+		view.grid.set(key, session.grid.get(key).duplicate())
 	display_development.houses.assign(session.development.houses.duplicate(true))
-	display_development.eligible = session.development.eligible
+	display_development.eligible = session.development.eligible.duplicate()
 	view.boundary_rate = GameUnits.flow_cm3(session.inflow_rate() / 3.0)
 	view.invalidate_state()
 	view.update_highlights()

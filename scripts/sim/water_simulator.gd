@@ -78,6 +78,8 @@ func step(rain_rate: float = 0.0, inflow_rate: float = 0.0,
 		var transfers := east if group < 2 else south
 		for i in edge_groups[group]:
 			var j := i + offset
+			if depths[i] == 0.0 and depths[j] == 0.0:
+				continue
 			var head_i := grid.sea_level if sea[i] else heights[i] + depths[i]
 			var head_j := grid.sea_level if sea[j] else heights[j] + depths[j]
 			var amount := clampf(weight * (head_i - head_j), -depths[j], depths[i])
