@@ -1,0 +1,23 @@
+# プロジェクト概要
+
+「治水の神 — 水理PoC」は、地形を変えて水の流れを導き、洪水から人々を守るゲームの検証プロジェクトです。Godot と GDScript で、固定マップ上の水理計算、表示、操作を試しています。企画と現時点の範囲は [README.md](README.md) を参照してください。
+
+## 基本構成
+
+- `project.godot`：Godot プロジェクト設定
+- `scenes/`：起動シーン
+- `scripts/model/`、`scripts/sim/`：地形と水の状態、シミュレーション
+- `scripts/view/`、`scripts/ui/`：描画と操作画面
+- `tests/`：水理計算の検証
+- `docs/`：設計、仕様、検証記録
+
+## 参照する文書
+
+- [README.md](README.md)：企画概要、PoC の範囲、使用バージョン、起動方法
+- [構成とデータモデル](docs/architecture.md)：責務とデータの流れ
+- [水シミュレーション](docs/water-model.md)：水理計算の仕様
+- [実装順序](docs/roadmap.md)：今後の実装範囲
+- [実行検証](docs/validation.md)、[速度調査](docs/performance.md)：検証結果
+- [ゲーム内の言葉遣い](docs/game-language.md)：表記と文体の方針（策定中）
+
+ゲーム内に表示する文言を追加・変更するときは、[ゲーム内の言葉遣い](docs/game-language.md) を確認してください。未決定の方針は推測で確定せず、必要に応じて同文書へ論点を残してください。
