@@ -27,6 +27,7 @@ var published_raining := false
 var published_heavy := false
 var published_mountain_rain := false
 const SKIP_BATCH_TICKS := 16
+const SKIP_SPEED := 4
 
 func _ready() -> void:
 	hud.new_requested.connect(_new_game)
@@ -117,7 +118,7 @@ func _process(delta: float) -> void:
 		return
 	if screen != "game":
 		return
-	if not skipping and not modal_open and published_rate > 0:
+	if not modal_open and published_rate > 0:
 		# Include frames spent waiting for the worker in the real-time clock.
 		accumulator = minf(accumulator + delta * published_rate, 2.0)
 	if skipping and not modal_open:
@@ -139,7 +140,10 @@ func _process(delta: float) -> void:
 			_refresh()
 			_handle_phase()
 		else:
-			simulation_thread.start(session.advance_ticks.bind(SKIP_BATCH_TICKS))
+			var ticks := mini(SKIP_BATCH_TICKS, floori(accumulator / WaterSimulator.FIXED_DT))
+			if ticks > 0:
+				accumulator -= ticks * WaterSimulator.FIXED_DT
+				simulation_thread.start(session.advance_ticks.bind(ticks))
 		return
 	if modal_open:
 		_update_weather()
@@ -159,7 +163,8 @@ func _process(delta: float) -> void:
 		autosave_seconds = 0.0
 
 func _refresh() -> void:
-	published_rate = (session.speed if session.phase == GameSession.Phase.PREPARE else 4) if session.can_advance() else 0
+	var rate := (SKIP_SPEED if skipping else session.speed) if session.phase == GameSession.Phase.PREPARE else 4
+	published_rate = rate if session.can_advance() else 0
 	published_raining = session.phase == GameSession.Phase.RAIN
 	published_heavy = session.weather >= 2
 	published_mountain_rain = session.weather % 2 == 0

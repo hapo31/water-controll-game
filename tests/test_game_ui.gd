@@ -106,6 +106,7 @@ func run() -> void:
 	var advance: float = game.session.elapsed - before
 	print("REALTIME_4X: ", advance, " simulation seconds / 2.5 wall seconds")
 	verify(advance >= 8.5 and advance <= 11.0, "4x simulation keeps real-time pace")
+	game.session.speed = 1
 	game.session.paused = true
 	game.session.phase_seconds = 150.4
 	game._request_skip()
@@ -115,13 +116,14 @@ func run() -> void:
 	press("水の流れを進めて終える")
 	verify(game.view.is_visible_in_tree() and game.hud.game_screen.visible and not game.hud.loading_screen.visible and not game.modal_open, "Fast-forward keeps the map and game HUD visible without a loading overlay")
 	verify(game.hud.phase_label.text.contains("早送りします") and game.hud.toggle_button.disabled and game.hud.speed_button.disabled and game.hud.skip_button.disabled and game.hud.tool_buttons[1].disabled, "Fast-forward shows remaining time and disables conflicting actions")
+	verify(game.published_rate == 4 and game.hud.speed_button.text.contains("4倍速"), "Skipping uses and displays 4x even when the normal preparation speed is 1x")
 	var skip_water: PackedFloat64Array = game.view.grid.water.duplicate()
 	var skip_bar: float = game.hud.time_bar.value
 	key(KEY_SPACE)
 	key(KEY_TAB)
 	var skip_power: int = game.session.power
 	click(where, MOUSE_BUTTON_LEFT)
-	verify(game.skipping and not game.session.paused and game.session.speed == 4 and game.session.power == skip_power, "Space, Tab and terrain clicks cannot interrupt or edit the fast-forward")
+	verify(game.skipping and not game.session.paused and game.session.speed == 1 and game.session.power == skip_power, "Space, Tab and terrain clicks cannot interrupt or edit the fast-forward")
 	var zoom_before: float = game.camera.zoom.x
 	click(where, MOUSE_BUTTON_WHEEL_UP)
 	verify(game.camera.zoom.x > zoom_before, "The map can still be zoomed during fast-forward")
@@ -134,7 +136,10 @@ func run() -> void:
 	game.set_process(false)
 	game._finish_batch(true)
 	verify(game.skipping and game.view.grid.water != skip_water and game.hud.time_bar.value < skip_bar, "Water snapshots and remaining time visibly update while fast-forward is running")
-	print("SKIP_RENDERED: ", game.session.elapsed - before, " simulation seconds / ", float(Time.get_ticks_msec() - skip_wall_start) / 1000.0, " wall seconds")
+	var skip_elapsed: float = game.session.elapsed - before
+	var skip_wall := float(Time.get_ticks_msec() - skip_wall_start) / 1000.0
+	print("SKIP_RENDERED: ", skip_elapsed, " simulation seconds / ", skip_wall, " wall seconds")
+	verify(absf(skip_elapsed - skip_wall * 4.0) <= 0.4, "Visible fast-forward advances at 4x real-time rather than unrestricted speed")
 	game.set_process(true)
 	while game.skipping:
 		await process_frame
