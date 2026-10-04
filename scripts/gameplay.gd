@@ -15,7 +15,6 @@ var accumulator := 0.0
 var tool_mode := 0
 var modal_open := false
 var skipping := false
-var skip_start_seconds := 0.0
 var autosave_seconds := 0.0
 var last_phase := -1
 var screen := "title"
@@ -27,6 +26,7 @@ var published_rate := 0
 var published_raining := false
 var published_heavy := false
 var published_mountain_rain := false
+const SKIP_BATCH_TICKS := 16
 
 func _ready() -> void:
 	hud.new_requested.connect(_new_game)
@@ -120,23 +120,26 @@ func _process(delta: float) -> void:
 	if not skipping and not modal_open and published_rate > 0:
 		# Include frames spent waiting for the worker in the real-time clock.
 		accumulator = minf(accumulator + delta * published_rate, 2.0)
+	if skipping and not modal_open:
+		_update_camera(delta)
+		_update_hover()
 	var changed := _finish_batch()
 	# No reads of live gameplay state while the worker is writing it.
 	# WorldView uses a separate published snapshot, including house records.
 	if simulation_thread.is_started():
 		return
 	if changed:
+		if skipping and session.phase != GameSession.Phase.PREPARE:
+			skipping = false
 		_refresh()
 		_handle_phase()
 	if skipping:
 		if session.phase != GameSession.Phase.PREPARE:
 			skipping = false
-			hud.show_game()
 			_refresh()
 			_handle_phase()
 		else:
-			hud.show_loading((session.phase_seconds - skip_start_seconds) / maxf(0.05, 180.0 - skip_start_seconds), "残りの水の流れを進めています。")
-			simulation_thread.start(session.advance_ticks.bind(64))
+			simulation_thread.start(session.advance_ticks.bind(SKIP_BATCH_TICKS))
 		return
 	if modal_open:
 		_update_weather()
@@ -167,7 +170,7 @@ func _refresh() -> void:
 	view.boundary_rate = GameUnits.flow_cm3(session.inflow_rate() / 3.0)
 	view.invalidate_state()
 	view.update_highlights()
-	hud.update_state(session, view.selected)
+	hud.update_state(session, view.selected, skipping)
 	_update_weather()
 
 func _handle_phase() -> void:
@@ -247,6 +250,8 @@ func _set_tool(mode: int) -> void:
 	audio.play_cue("confirm")
 
 func _request_skip() -> void:
+	if screen != "game" or modal_open or skipping:
+		return
 	_finish_batch(true)
 	if session.phase == GameSession.Phase.PREPARE:
 		hud.show_skip(session)
@@ -254,10 +259,13 @@ func _request_skip() -> void:
 
 func _confirm_skip() -> void:
 	_finish_batch(true)
+	if session.phase != GameSession.Phase.PREPARE or session.transition_pending or skipping:
+		return
 	skipping = true
-	skip_start_seconds = session.phase_seconds
 	session.paused = false
-	hud.show_loading(0.0, "残りの水の流れを進めています。")
+	accumulator = 0.0
+	hud.show_game()
+	_refresh()
 	audio.play_cue("confirm")
 
 func _save(show_message: bool) -> bool:
@@ -329,7 +337,7 @@ func _cell_at(point: Vector2) -> int:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		pointer = event.position
-	if event is InputEventKey and event.pressed and not event.echo and screen == "game" and not modal_open and not skipping:
+	if event is InputEventKey and event.pressed and not event.echo and screen == "game" and not modal_open:
 		if event.keycode == KEY_SPACE:
 			_toggle()
 		elif event.keycode == KEY_TAB:
@@ -340,11 +348,11 @@ func _input(event: InputEvent) -> void:
 			_home()
 		elif event.keycode == KEY_ESCAPE:
 			hud.hide_popup()
-		elif event.keycode in [KEY_1, KEY_2, KEY_3]:
+		elif event.keycode in [KEY_1, KEY_2, KEY_3] and not skipping:
 			_set_tool(event.keycode - KEY_1)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if screen != "game" or modal_open or skipping:
+	if screen != "game" or modal_open:
 		return
 	if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
 		camera.position -= event.relative / camera.zoom
@@ -357,6 +365,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			view.queue_redraw()
 			_update_weather()
 		elif event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+			if skipping:
+				return
 			_finish_batch(true)
 			var cell := _cell_at(event.position)
 			if cell < 0:

@@ -107,17 +107,41 @@ func run() -> void:
 	print("REALTIME_4X: ", advance, " simulation seconds / 2.5 wall seconds")
 	verify(advance >= 8.5 and advance <= 11.0, "4x simulation keeps real-time pace")
 	game.session.paused = true
-	game.session.phase_seconds = 179.8
+	game.session.phase_seconds = 150.4
 	game._request_skip()
 	before = game.session.elapsed
 	game._process(1.0)
 	verify(game.session.elapsed == before and game.hud.modal_kind == "skip", "Skipping asks confirmation and stops time")
 	press("水の流れを進めて終える")
-	game._process(0.05)
+	verify(game.view.is_visible_in_tree() and game.hud.game_screen.visible and not game.hud.loading_screen.visible and not game.modal_open, "Fast-forward keeps the map and game HUD visible without a loading overlay")
+	verify(game.hud.phase_label.text.contains("早送りします") and game.hud.toggle_button.disabled and game.hud.speed_button.disabled and game.hud.skip_button.disabled and game.hud.tool_buttons[1].disabled, "Fast-forward shows remaining time and disables conflicting actions")
+	var skip_water: PackedFloat64Array = game.view.grid.water.duplicate()
+	var skip_bar: float = game.hud.time_bar.value
+	key(KEY_SPACE)
+	key(KEY_TAB)
+	var skip_power: int = game.session.power
+	click(where, MOUSE_BUTTON_LEFT)
+	verify(game.skipping and not game.session.paused and game.session.speed == 4 and game.session.power == skip_power, "Space, Tab and terrain clicks cannot interrupt or edit the fast-forward")
+	var zoom_before: float = game.camera.zoom.x
+	click(where, MOUSE_BUTTON_WHEEL_UP)
+	verify(game.camera.zoom.x > zoom_before, "The map can still be zoomed during fast-forward")
+	key(KEY_HOME)
+	await capture("skip-start")
+	game.set_process(true)
+	var skip_wall_start := Time.get_ticks_msec()
+	await create_timer(0.35).timeout
+	await capture("skip-running")
+	game.set_process(false)
 	game._finish_batch(true)
-	game._process(0.0)
+	verify(game.skipping and game.view.grid.water != skip_water and game.hud.time_bar.value < skip_bar, "Water snapshots and remaining time visibly update while fast-forward is running")
+	print("SKIP_RENDERED: ", game.session.elapsed - before, " simulation seconds / ", float(Time.get_ticks_msec() - skip_wall_start) / 1000.0, " wall seconds")
+	game.set_process(true)
+	while game.skipping:
+		await process_frame
+	game.set_process(false)
+	game._finish_batch(true)
 	verify(game.session.phase == GameSession.Phase.RAIN and game.session.transition_pending and game.hud.modal_kind == "transition", "Confirmed skip simulates every remaining tick and pauses before rainfall")
-	verify(is_equal_approx(game.session.elapsed - before, 0.2), "Skip advances remaining water time rather than jumping the clock")
+	verify(is_equal_approx(game.session.elapsed - before, 29.6), "Skip advances remaining water time rather than jumping the clock")
 	await capture("rain-transition")
 	press("進める")
 	game._refresh()

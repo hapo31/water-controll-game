@@ -298,13 +298,16 @@ func set_tool(mode: int) -> void:
 	for n in tool_buttons.size():
 		tool_buttons[n].modulate = Color("edc68e") if n == mode else Color.WHITE
 
-func update_state(session: GameSession, selected: int) -> void:
+func update_state(session: GameSession, selected: int, skipping: bool = false) -> void:
 	calendar_label.text = session.calendar()
 	population_label.text = "住民 %d人" % session.development.population()
 	power_label.text = "神力 %d" % session.power
 	var preparing := session.phase == GameSession.Phase.PREPARE
+	var editable := preparing and not skipping
 	var seconds := ceili(session.remaining())
 	phase_label.text = "治水します。 %02d:%02d" % [seconds / 60, seconds % 60] if preparing else "雨が降っています。 %02d秒" % ceili(session.remaining() / 4.0)
+	if skipping and preparing:
+		phase_label.text = "早送りします。 %02d:%02d" % [seconds / 60, seconds % 60]
 	if session.phase in [GameSession.Phase.REPORT, GameSession.Phase.GAME_OVER]:
 		phase_label.text = "結果を確認します。"
 	time_bar.value = session.remaining() / (180.0 if preparing else 60.0) * 100.0
@@ -312,14 +315,16 @@ func update_state(session: GameSession, selected: int) -> void:
 	inlet_label.text = "流入 %.0f cm³/s\n各流入マス %.0f cm³/s" % [GameUnits.flow_cm3(session.inflow_rate()), GameUnits.flow_cm3(session.inflow_rate() / 3.0)]
 	seed_label.text = "地形シード %d" % session.terrain_seed
 	toggle_button.text = "再生する [Space]" if session.paused else "停止する [Space]"
-	toggle_button.disabled = not preparing
+	toggle_button.disabled = not editable
 	speed_button.text = "%s [Tab]" % ("等速" if session.speed == 1 else "%d倍速" % session.speed)
 	if session.phase == GameSession.Phase.RAIN:
 		speed_button.text = "4倍速で進みます。"
-	speed_button.disabled = not preparing
-	skip_button.disabled = not preparing
+	elif skipping:
+		speed_button.text = "早送りします。"
+	speed_button.disabled = not editable
+	skip_button.disabled = not editable
 	for n in range(1, 3):
-		tool_buttons[n].disabled = not preparing or session.power < 10
+		tool_buttons[n].disabled = not editable or session.power < 10
 	inspector.text = cell_text(session, selected) if selected >= 0 else "右クリックで水位を調べます。\n\n1マスは100cmです。\n盛土・掘削で神力を10使います。"
 	eligible_icon.visible = selected >= 0 and session.development.eligible[selected] != 0
 	if popup.visible and popup_cell >= 0:
@@ -409,7 +414,7 @@ func show_transition(session: GameSession) -> void:
 func show_skip(session: GameSession) -> void:
 	var box := _open_modal("skip")
 	_label(box, "治水を終えますか？", 30)
-	_label(box, "残り%.0f秒の水の流れを進めてから、雨を迎えます。" % session.remaining(), 17, MUTED)
+	_label(box, "残り%.0f秒の水の流れを、画面を見ながら早送りします。" % session.remaining(), 17, MUTED)
 	_button(box, "水の流れを進めて終える", func(): close_modal(); skip_confirmed.emit())
 	_button(box, "治水を続ける", close_modal)
 
