@@ -27,7 +27,7 @@ var published_raining := false
 var published_heavy := false
 var published_mountain_rain := false
 const SKIP_BATCH_TICKS := 16
-const SKIP_SPEED := 4
+const SKIP_SPEED := 16
 
 func _ready() -> void:
 	hud.new_requested.connect(_new_game)

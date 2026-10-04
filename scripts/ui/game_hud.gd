@@ -17,6 +17,7 @@ signal sound_requested(muted: bool)
 signal modal_changed(open: bool)
 const Landscape = preload("res://scripts/ui/title_landscape.gd")
 const SettlementIcon = preload("res://scripts/ui/settlement_icon.gd")
+const FastForwardIcon = preload("res://scripts/ui/fast_forward_icon.gd")
 const PAPER := Color("f0e7cf")
 const MUTED := Color("adc0b6")
 var root_control: Control
@@ -51,6 +52,9 @@ var popup_info: Label
 var popup_icon: Control
 var toast_remaining := 0.0
 var popup_cell := -1
+var fast_forward: Control
+var fast_forward_active := false
+var blink_seconds := 0.0
 
 func _ready() -> void:
 	root_control = Control.new()
@@ -238,6 +242,14 @@ func _build_game() -> void:
 	compass.offset_left = -164
 	compass.offset_top = 108
 	compass.offset_right = -24
+	fast_forward = FastForwardIcon.new()
+	game_screen.add_child(fast_forward)
+	fast_forward.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	fast_forward.offset_left = -264
+	fast_forward.offset_top = 116
+	fast_forward.offset_right = -192
+	fast_forward.offset_bottom = 160
+	fast_forward.hide()
 
 func _build_loading() -> void:
 	loading_screen = _layer()
@@ -274,6 +286,7 @@ func _layout() -> void:
 		popup.position = popup.position.clamp(Vector2(8, 8), get_viewport().get_visible_rect().size - popup.size - Vector2(8, 8))
 
 func show_title(can_continue: bool, note: String = "") -> void:
+	_set_fast_forward(false)
 	close_modal()
 	title_screen.show()
 	game_screen.hide()
@@ -283,6 +296,7 @@ func show_title(can_continue: bool, note: String = "") -> void:
 	title_note.text = note if not note.is_empty() else ("保存したところから再開できます。" if can_continue else "まだ保存した記録がありません。")
 
 func show_loading(progress: float, message: String) -> void:
+	_set_fast_forward(false)
 	title_screen.hide()
 	game_screen.hide()
 	loading_screen.show()
@@ -304,6 +318,7 @@ func update_state(session: GameSession, selected: int, skipping: bool = false) -
 	power_label.text = "神力 %d" % session.power
 	var preparing := session.phase == GameSession.Phase.PREPARE
 	var editable := preparing and not skipping
+	_set_fast_forward(skipping and preparing)
 	var seconds := ceili(session.remaining())
 	phase_label.text = "治水します。 %02d:%02d" % [seconds / 60, seconds % 60] if preparing else "雨が降っています。 %02d秒" % ceili(session.remaining() / 4.0)
 	if skipping and preparing:
@@ -320,7 +335,7 @@ func update_state(session: GameSession, selected: int, skipping: bool = false) -
 	if session.phase == GameSession.Phase.RAIN:
 		speed_button.text = "4倍速で進みます。"
 	elif skipping:
-		speed_button.text = "4倍速で進みます。"
+		speed_button.text = "早送りします。"
 	speed_button.disabled = not editable
 	skip_button.disabled = not editable
 	for n in range(1, 3):
@@ -366,12 +381,24 @@ func toast(message: String) -> void:
 	toast_remaining = 3.5
 
 func _process(delta: float) -> void:
+	if fast_forward_active:
+		blink_seconds = fmod(blink_seconds + delta, 0.9)
+		fast_forward.modulate.a = 1.0 if blink_seconds < 0.55 else 0.0
 	if toast_remaining > 0.0:
 		toast_remaining -= delta
 		if toast_remaining <= 0.0:
 			toast_label.text = ""
 
+func _set_fast_forward(active: bool) -> void:
+	if fast_forward_active == active:
+		return
+	fast_forward_active = active
+	blink_seconds = 0.0
+	fast_forward.modulate.a = 1.0
+	fast_forward.visible = active
+
 func _open_modal(kind: String, width: float = 640) -> VBoxContainer:
+	_set_fast_forward(false)
 	close_modal()
 	hide_popup()
 	modal_kind = kind
@@ -414,7 +441,7 @@ func show_transition(session: GameSession) -> void:
 func show_skip(session: GameSession) -> void:
 	var box := _open_modal("skip")
 	_label(box, "治水を終えますか？", 30)
-	_label(box, "残り%.0f秒の水の流れを、画面を見ながら4倍速で進めます。" % session.remaining(), 17, MUTED)
+	_label(box, "残り%.0f秒の水の流れを、画面を見ながら早送りします。" % session.remaining(), 17, MUTED)
 	_button(box, "水の流れを進めて終える", func(): close_modal(); skip_confirmed.emit())
 	_button(box, "治水を続ける", close_modal)
 

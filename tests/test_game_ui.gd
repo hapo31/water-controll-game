@@ -73,6 +73,7 @@ func run() -> void:
 	game.session.paused = true
 	game._refresh()
 	await capture("playing")
+	verify(not game.hud.fast_forward.visible and not game.hud.fast_forward_active, "The fast-forward marker is hidden during ordinary preparation")
 	verify(game.hud.inlet_label.text.contains("1800000") and game.hud.inlet_label.text.contains("cm³/s"), "Total and individual inlet flows always displayed in physical units")
 	var where := point(38, 30)
 	click(where, MOUSE_BUTTON_RIGHT)
@@ -108,7 +109,7 @@ func run() -> void:
 	verify(advance >= 8.5 and advance <= 11.0, "4x simulation keeps real-time pace")
 	game.session.speed = 1
 	game.session.paused = true
-	game.session.phase_seconds = 150.4
+	game.session.phase_seconds = 130.4
 	game._request_skip()
 	before = game.session.elapsed
 	game._process(1.0)
@@ -116,7 +117,7 @@ func run() -> void:
 	press("水の流れを進めて終える")
 	verify(game.view.is_visible_in_tree() and game.hud.game_screen.visible and not game.hud.loading_screen.visible and not game.modal_open, "Fast-forward keeps the map and game HUD visible without a loading overlay")
 	verify(game.hud.phase_label.text.contains("早送りします") and game.hud.toggle_button.disabled and game.hud.speed_button.disabled and game.hud.skip_button.disabled and game.hud.tool_buttons[1].disabled, "Fast-forward shows remaining time and disables conflicting actions")
-	verify(game.published_rate == 4 and game.hud.speed_button.text.contains("4倍速"), "Skipping uses and displays 4x even when the normal preparation speed is 1x")
+	verify(game.published_rate == 16 and game.hud.fast_forward.visible and game.hud.fast_forward_active and not game.hud.speed_button.text.contains("倍速"), "Skipping targets 16x and shows a symbol without a speed number")
 	var skip_water: PackedFloat64Array = game.view.grid.water.duplicate()
 	var skip_bar: float = game.hud.time_bar.value
 	key(KEY_SPACE)
@@ -139,14 +140,24 @@ func run() -> void:
 	var skip_elapsed: float = game.session.elapsed - before
 	var skip_wall := float(Time.get_ticks_msec() - skip_wall_start) / 1000.0
 	print("SKIP_RENDERED: ", skip_elapsed, " simulation seconds / ", skip_wall, " wall seconds")
-	verify(absf(skip_elapsed - skip_wall * 4.0) <= 0.4, "Visible fast-forward advances at 4x real-time rather than unrestricted speed")
+	verify(skip_elapsed > 0.0 and skip_elapsed <= skip_wall * 16.0 + 0.8, "Visible fast-forward progresses without exceeding the 16x clock budget")
+	var saw_on := false
+	var saw_off := false
+	var blink_start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - blink_start < 1000:
+		await process_frame
+		game._refresh()
+		saw_on = saw_on or game.hud.fast_forward.modulate.a > 0.9
+		saw_off = saw_off or game.hud.fast_forward.modulate.a < 0.1
+	verify(saw_on and saw_off, "The video-style marker blinks even while water snapshots refresh")
 	game.set_process(true)
 	while game.skipping:
 		await process_frame
 	game.set_process(false)
 	game._finish_batch(true)
 	verify(game.session.phase == GameSession.Phase.RAIN and game.session.transition_pending and game.hud.modal_kind == "transition", "Confirmed skip simulates every remaining tick and pauses before rainfall")
-	verify(is_equal_approx(game.session.elapsed - before, 29.6), "Skip advances remaining water time rather than jumping the clock")
+	verify(is_equal_approx(game.session.elapsed - before, 49.6), "Skip advances remaining water time rather than jumping the clock")
+	verify(not game.hud.fast_forward.visible and not game.hud.fast_forward_active, "The fast-forward marker disappears before the rainfall transition")
 	await capture("rain-transition")
 	press("進める")
 	game._refresh()
