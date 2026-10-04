@@ -201,6 +201,7 @@ static func from_data(data: Dictionary) -> GameSession:
 	result.event_log.assign(data.event_log)
 	result.rng.state = data.rng_state
 	result.development.restore(data.development)
+	result.development.refresh_eligibility(result.grid)
 	for key in data.ledger:
 		result.solver.set(key, data.ledger[key])
 	return result

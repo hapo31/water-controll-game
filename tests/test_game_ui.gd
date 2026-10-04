@@ -154,6 +154,8 @@ func run() -> void:
 	verify(not game.hud.seed_label.text.contains("シナリオ"), "Only terrain seed is disclosed")
 	verify(absf(game.session.solver.balance_error()) < 1e-6, "Threaded gameplay remains conservative")
 	print("GAME_UI_RESULT: %d checks, %d failures" % [checks, failures])
+	game.audio.set_muted(true)
+	await create_timer(0.1).timeout
 	game.queue_free()
 	await process_frame
 	await process_frame

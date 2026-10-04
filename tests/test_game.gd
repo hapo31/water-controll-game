@@ -187,7 +187,7 @@ func _test_development() -> void:
 	dev.refresh_eligibility(state.grid)
 	verify(dev.patches.is_empty(), "Exactly 15 percent and an interior wet hole both prevent settlement")
 	dev.current_wet[middle] = 0.0
-	state.grid.elevation[middle] = 4.0
+	state.grid.elevation[middle] = 2.5
 	dev.assess_window()
 	dev.refresh_eligibility(state.grid)
 	dev.current_seconds += 180.0

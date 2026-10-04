@@ -196,7 +196,7 @@ func _build_game() -> void:
 	inspector.custom_minimum_size = Vector2(240, 120)
 	inspector.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(HSeparator.new())
-	_label(box, "橙色の土地に移住できます。\n50cm以上の浸水で報酬を失います。\n100cm以上で住民を失います。", 13, MUTED)
+	_label(box, "橙色の平坦な土地に移住できます。\n10×10マスの高低差は100cm以内です。\n50cm以上の浸水で報酬を失います。\n100cm以上で住民を失います。", 13, MUTED)
 	_button(box, "視点を戻す [Home]", func(): home_requested.emit())
 	_button(box, "保存する [F5]", func(): save_requested.emit())
 	_button(box, "保存してタイトルへ戻る", func(): title_requested.emit())

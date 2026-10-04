@@ -2,6 +2,7 @@ class_name DevelopmentSystem
 extends RefCounted
 
 const PATCH_SIZE := 10
+const MAX_PATCH_RELIEF := 1.0
 const HOUSE_WIDTH := 3
 const HOUSE_HEIGHT := 4
 const YEAR_TURNS := 8
@@ -91,12 +92,27 @@ func refresh_eligibility(grid: GridState) -> void:
 			var d := x + PATCH_SIZE + (y + PATCH_SIZE) * stride
 			if prefix[d] - prefix[b] - prefix[c] + prefix[a] != 0:
 				continue
+			if not _patch_is_flat(grid, x, y):
+				continue
 			patches.append(grid.index(x, y))
 			for yy in range(y, y + PATCH_SIZE):
 				for xx in range(x, x + PATCH_SIZE):
 					eligible[grid.index(xx, yy)] = 1
 
+func _patch_is_flat(grid: GridState, x: int, y: int) -> bool:
+	var lowest := INF
+	var highest := -INF
+	for yy in range(y, y + PATCH_SIZE):
+		for xx in range(x, x + PATCH_SIZE):
+			var elevation := grid.elevation[grid.index(xx, yy)]
+			lowest = minf(lowest, elevation)
+			highest = maxf(highest, elevation)
+			if highest - lowest > MAX_PATCH_RELIEF:
+				return false
+	return true
+
 func settle(grid: GridState, rng: RandomNumberGenerator, turn: int) -> Dictionary:
+	refresh_eligibility(grid)
 	if patches.is_empty():
 		return {}
 	var patch := patches[rng.randi_range(0, patches.size() - 1)]
