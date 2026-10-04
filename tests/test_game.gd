@@ -93,7 +93,7 @@ func _test_phase_and_weather() -> void:
 	state.advance_ticks(1)
 	verify(state.phase == GameSession.Phase.RAIN and state.phase_seconds == 0.0 and state.transition_pending, "Three-minute preparation enters paused rainfall transition")
 	var multiplier: float = state.weather_multiplier
-	verify(multiplier >= 2.0 and multiplier <= 6.0, "Weather changes inlet strength")
+	verify(multiplier == (10.0 if state.weather < 2 else 40.0), "Rain uses ten times base inflow; heavy rain uses forty times")
 	verify(is_equal_approx(state.inflow_rate(), GameUnits.BASE_INFLOW * multiplier), "Inflow reflects rainfall strength")
 	state.dismiss_transition()
 	state.phase_seconds = 59.95
@@ -114,7 +114,7 @@ func _test_phase_and_weather() -> void:
 	for n in 32:
 		state._begin_rain()
 		seen[state.weather] = true
-		verify(state.weather_multiplier >= (2.0 if state.weather < 2 else 4.0) and state.weather_multiplier <= (3.0 if state.weather < 2 else 6.0), "Weather multiplier stays inside event limits")
+		verify(state.weather_multiplier == (10.0 if state.weather < 2 else 40.0), "Weather uses the fixed multiplier for its rain strength")
 	verify(seen.size() == 4, "Scenario RNG can select all four events")
 
 func _test_brush() -> void:

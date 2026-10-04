@@ -88,7 +88,7 @@ func _begin_rain() -> void:
 	phase_seconds = 0.0
 	paused = false
 	weather = rng.randi_range(0, 3)
-	weather_multiplier = rng.randf_range(2.0, 3.0) if weather < 2 else rng.randf_range(4.0, 6.0)
+	weather_multiplier = 10.0 if weather < 2 else 40.0
 	development.begin_rain_window()
 	transition_pending = true
 	notification = ""
